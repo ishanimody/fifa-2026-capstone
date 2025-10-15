@@ -1,0 +1,134 @@
+{
+  "overview": {
+    "total_venues": 16,
+    "total_incidents": 20100,
+    "total_casualties": 77241,
+    "total_dead": 46115,
+    "total_missing": 31126,
+    "date_range": {
+      "earliest": "2014-01-02",
+      "latest": "2025-09-30"
+    }
+  },
+  "hotspots": [
+    {
+      "latitude": 35.5,
+      "longitude": 51.5,
+      "incident_count": 1061,
+      "total_dead": 1063,
+      "total_missing": 0,
+      "intensity": 1061,
+      "total_casualties": 1063
+    },
+    {
+      "latitude": 28.5,
+      "longitude": -100.5,
+      "incident_count": 506,
+      "total_dead": 553,
+      "total_missing": 19,
+      "intensity": 506,
+      "total_casualties": 572
+    },
+    {
+      "latitude": 29.5,
+      "longitude": 52.5,
+      "incident_count": 452,
+      "total_dead": 452,
+      "total_missing": 0,
+      "intensity": 452,
+      "total_casualties": 452
+    },
+    {
+      "latitude": 33.0,
+      "longitude": 12.5,
+      "incident_count": 339,
+      "total_dead": 1136,
+      "total_missing": 2494,
+      "intensity": 339,
+      "total_casualties": 3630
+    },
+    {
+      "latitude": 32.0,
+      "longitude": -106.5,
+      "incident_count": 314,
+      "total_dead": 324,
+      "total_missing": 2,
+      "intensity": 314,
+      "total_casualties": 326
+    },
+    {
+      "latitude": 32.0,
+      "longitude": -112.0,
+      "incident_count": 312,
+      "total_dead": 313,
+      "total_missing": 0,
+      "intensity": 312,
+      "total_casualties": 313
+    },
+    {
+      "latitude": 27.5,
+      "longitude": -99.5,
+      "incident_count": 303,
+      "total_dead": 466,
+      "total_missing": 20,
+      "intensity": 303,
+      "total_casualties": 486
+    },
+    {
+      "latitude": 27.0,
+      "longitude": -98.0,
+      "incident_count": 284,
+      "total_dead": 445,
+      "total_missing": 0,
+      "intensity": 284,
+      "total_casualties": 445
+    },
+    {
+      "latitude": 27.5,
+      "longitude": 62.5,
+      "incident_count": 225,
+      "total_dead": 238,
+      "total_missing": 0,
+      "intensity": 225,
+      "total_casualties": 238
+    },
+    {
+      "latitude": 32.0,
+      "longitude": -113.0,
+      "incident_count": 223,
+      "total_dead": 223,
+      "total_missing": 1,
+      "intensity": 223,
+      "total_casualties": 224
+    }
+  ],
+  "high_risk_venues": [
+    {
+      "venue_name": "Estadio BBVA",
+      "city": "Monterrey",
+      "country": "Mexico",
+      "current_risk_level": "High",
+      "calculated_risk_score": 68.64,
+      "calculated_risk_level": "High",
+      "incidents_within_100km": 47,
+      "total_casualties_nearby": 72,
+      "closest_incident_km": 4.59
+    },
+    {
+      "venue_name": "Estadio Azteca",
+      "city": "Mexico City",
+      "country": "Mexico",
+      "current_risk_level": "High",
+      "calculated_risk_score": 66.48,
+      "calculated_risk_level": "High",
+      "incidents_within_100km": 49,
+      "total_casualties_nearby": 54,
+      "closest_incident_km": 10.12
+    }
+  ],
+  "venue_risk_summary": {
+    "High": 2,
+    "Medium": 1,
+    "Low": 13
+  }
+}

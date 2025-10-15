@@ -1,0 +1,17 @@
+Venue,City,Country,Risk Level,Incidents (50km),Casualties,Closest (km)
+Estadio Azteca,Mexico City,Mexico,High,21,24,10.12
+Estadio BBVA,Monterrey,Mexico,High,18,36,4.59
+Hard Rock Stadium,Miami Gardens,USA,High,9,22,6.34
+Estadio Akron,Guadalajara,Mexico,Medium,3,3,11.27
+Lumen Field,Seattle,USA,Low,1,1,39.09
+BMO Field,Toronto,Canada,Medium,1,1,12.72
+Mercedes-Benz Stadium,Atlanta,USA,Medium,0,0,N/A
+MetLife Stadium,East Rutherford,USA,Medium,0,0,N/A
+SoFi Stadium,Inglewood,USA,High,0,0,N/A
+Levi's Stadium,Santa Clara,USA,Low,0,0,N/A
+NRG Stadium,Houston,USA,High,0,0,N/A
+AT&T Stadium,Arlington,USA,High,0,0,N/A
+Arrowhead Stadium,Kansas City,USA,Low,0,0,N/A
+Lincoln Financial Field,Philadelphia,USA,Medium,0,0,N/A
+Gillette Stadium,Foxborough,USA,Low,0,0,N/A
+BC Place,Vancouver,Canada,Low,0,0,N/A
