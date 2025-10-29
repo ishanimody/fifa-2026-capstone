@@ -210,6 +210,83 @@ class DataQualityLog(Base):
     
     def __repr__(self):
         return f'<QualityLog {self.processing_date}>'
+    
+    """
+CBP Drug Seizures Database Model
+Add to: src/models/models.py (at the end, before helper functions)
+"""
+
+class CBPDrugSeizure(Base):
+    """CBP Drug Seizures Data"""
+    __tablename__ = 'cbp_drug_seizures'
+    
+    id = Column(Integer, primary_key=True)
+    
+    # Time information
+    fiscal_year = Column(Integer, nullable=False, index=True)
+    month = Column(String(20), nullable=False)
+    month_number = Column(Integer)  # 1-12 for easy sorting
+    
+    # Organization
+    component = Column(String(100))  # Office of Field Operations, Border Patrol, etc.
+    region = Column(String(100))
+    land_filter = Column(String(50))
+    area_of_responsibility = Column(String(100), index=True)  # Field Office name
+    
+    # Drug information
+    drug_type = Column(String(100), nullable=False, index=True)
+    event_count = Column(Integer, default=0)
+    quantity_lbs = Column(Float, default=0.0)
+    
+    # Geocoding (we'll add coordinates based on field office)
+    latitude = Column(Float)
+    longitude = Column(Float)
+    city = Column(String(100))
+    state = Column(String(50))
+    
+    # Metadata
+    data_source = Column(String(200))
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Unique constraint to prevent duplicates
+    __table_args__ = (
+        Index('idx_cbp_unique', 'fiscal_year', 'month', 'component', 'area_of_responsibility', 'drug_type', unique=True),
+        Index('idx_cbp_location', 'latitude', 'longitude'),
+        Index('idx_cbp_drug_type', 'drug_type'),
+        Index('idx_cbp_year_month', 'fiscal_year', 'month_number'),
+    )
+    
+    def __repr__(self):
+        return f'<CBPSeizure {self.fiscal_year}-{self.month} {self.area_of_responsibility} {self.drug_type}>'
+
+
+# Field Office Location Mapping
+CBP_FIELD_OFFICE_LOCATIONS = {
+    'ATLANTA FIELD OFFICE': {'city': 'Atlanta', 'state': 'GA', 'lat': 33.7490, 'lon': -84.3880},
+    'BALTIMORE FIELD OFFICE': {'city': 'Baltimore', 'state': 'MD', 'lat': 39.2904, 'lon': -76.6122},
+    'BOSTON FIELD OFFICE': {'city': 'Boston', 'state': 'MA', 'lat': 42.3601, 'lon': -71.0589},
+    'BUFFALO FIELD OFFICE': {'city': 'Buffalo', 'state': 'NY', 'lat': 42.8864, 'lon': -78.8784},
+    'CHICAGO FIELD OFFICE': {'city': 'Chicago', 'state': 'IL', 'lat': 41.8781, 'lon': -87.6298},
+    'DETROIT FIELD OFFICE': {'city': 'Detroit', 'state': 'MI', 'lat': 42.3314, 'lon': -83.0458},
+    'EL PASO FIELD OFFICE': {'city': 'El Paso', 'state': 'TX', 'lat': 31.7619, 'lon': -106.4850},
+    'HOUSTON FIELD OFFICE': {'city': 'Houston', 'state': 'TX', 'lat': 29.7604, 'lon': -95.3698},
+    'LAREDO FIELD OFFICE': {'city': 'Laredo', 'state': 'TX', 'lat': 27.5306, 'lon': -99.4803},
+    'LOS ANGELES FIELD OFFICE': {'city': 'Los Angeles', 'state': 'CA', 'lat': 34.0522, 'lon': -118.2437},
+    'MIAMI FIELD OFFICE': {'city': 'Miami', 'state': 'FL', 'lat': 25.7617, 'lon': -80.1918},
+    'NEW ORLEANS FIELD OFFICE': {'city': 'New Orleans', 'state': 'LA', 'lat': 29.9511, 'lon': -90.0715},
+    'NEW YORK FIELD OFFICE': {'city': 'New York', 'state': 'NY', 'lat': 40.7128, 'lon': -74.0060},
+    'NOGALES FIELD OFFICE': {'city': 'Nogales', 'state': 'AZ', 'lat': 31.3404, 'lon': -110.9342},
+    'PHILADELPHIA FIELD OFFICE': {'city': 'Philadelphia', 'state': 'PA', 'lat': 39.9526, 'lon': -75.1652},
+    'PHOENIX FIELD OFFICE': {'city': 'Phoenix', 'state': 'AZ', 'lat': 33.4484, 'lon': -112.0740},
+    'PORTLAND FIELD OFFICE': {'city': 'Portland', 'state': 'OR', 'lat': 45.5152, 'lon': -122.6784},
+    'SAN DIEGO FIELD OFFICE': {'city': 'San Diego', 'state': 'CA', 'lat': 32.7157, 'lon': -117.1611},
+    'SAN FRANCISCO FIELD OFFICE': {'city': 'San Francisco', 'state': 'CA', 'lat': 37.7749, 'lon': -122.4194},
+    'SAN JUAN FIELD OFFICE': {'city': 'San Juan', 'state': 'PR', 'lat': 18.4655, 'lon': -66.1057},
+    'SEATTLE FIELD OFFICE': {'city': 'Seattle', 'state': 'WA', 'lat': 47.6062, 'lon': -122.3321},
+    'TUCSON FIELD OFFICE': {'city': 'Tucson', 'state': 'AZ', 'lat': 32.2226, 'lon': -110.9747},
+    'WASHINGTON FIELD OFFICE': {'city': 'Washington', 'state': 'DC', 'lat': 38.9072, 'lon': -77.0369},
+}
 
 
 # Helper function to calculate distance between two points

@@ -1,0 +1,261 @@
+# Sprint 2 - File Structure & Setup Guide
+
+## Complete Project Structure
+
+```
+worldcup-smuggling-intelligence/
+│
+├── src/                                    # Main application code
+│   ├── __init__.py                         # Make src a package
+│   ├── app.py                              # Flask application (ALREADY EXISTS)
+│   │
+│   ├── models/                             # Database models
+│   │   ├── __init__.py                     # Import all models here
+│   │   └── models.py                       # NEW: SQLAlchemy models
+│   │
+│   ├── scrapers/                           # Web scrapers
+│   │   ├── __init__.py
+│   │   ├── iom_scraper.py                  # NEW: IOM Missing Migrants scraper
+│   │   ├── cbp_scraper.py                  # NEW: CBP statistics scraper
+│   │   └── base_scraper.py                 # NEW: Base scraper class (optional)
+│   │
+│   ├── routes/                             # API routes
+│   │   ├── __init__.py
+│   │   ├── main_routes.py                  # NEW: Main page routes
+│   │   └── api_routes.py                   # NEW: API endpoints
+│   │
+│   └── utils/                              # Utility functions
+│       ├── __init__.py
+│       ├── data_validator.py               # NEW: Data validation
+│       └── geo_utils.py                    # NEW: Geospatial utilities
+│
+├── scripts/                                # Standalone scripts
+│   ├── geocode_venues.py                   # ALREADY EXISTS from Sprint 1
+│   ├── geocode_venues_google.py            # ALREADY EXISTS from Sprint 1
+│   ├── run_scraper.py                      # NEW: Run scrapers manually
+│   ├── setup_database.py                   # NEW: Initialize database
+│   └── import_venues.py                    # NEW: Import venue data to DB
+│
+├── data/                                   # Data storage
+│   ├── raw/                                # Raw downloaded data
+│   │   ├── .gitkeep                        # Keep folder in git
+│   │   └── iom_missing_migrants_*.csv      # Downloaded IOM data
+│   │
+│   ├── processed/                          # Cleaned/processed data
+│   │   ├── .gitkeep
+│   │   └── iom_processed.csv               # Processed data
+│   │
+│   └── geojson/                            # GeoJSON files
+│       ├── worldcup_2026_venues.geojson    # ALREADY EXISTS from Sprint 1
+│       └── smuggling_incidents.geojson     # NEW: Generated from DB
+│
+├── templates/                              # HTML templates
+│   ├── index.html                          # ALREADY EXISTS
+│   ├── base.html                           # NEW: Base template
+│   └── map.html                            # NEW: Map viewer page
+│
+├── static/                                 # Static files
+│   ├── css/
+│   │   └── style.css                       # NEW: Custom styles
+│   ├── js/
+│   │   └── map.js                          # NEW: Map JavaScript
+│   └── images/
+│       └── logo.png                        # Optional
+│
+├── tests/                                  # Unit tests
+│   ├── __init__.py
+│   ├── test_scrapers.py                    # NEW: Test scrapers
+│   └── test_models.py                      # NEW: Test database models
+│
+├── docs/                                   # Documentation
+│   ├── project_charter.md                  # ALREADY EXISTS from Sprint 1
+│   ├── sprint1_summary.md                  # ALREADY EXISTS from Sprint 1
+│   ├── sprint2_plan.md                     # NEW: Sprint 2 documentation
+│   └── database_schema.md                  # NEW: Database documentation
+│
+├── migrations/                             # Database migrations (created by Alembic)
+│   └── versions/                           # Migration scripts (auto-generated)
+│
+├── logs/                                   # Application logs
+│   ├── .gitkeep
+│   └── scraper.log                         # NEW: Scraper logs
+│
+├── config/                                 # Configuration files
+│   ├── __init__.py
+│   └── config.py                           # NEW: App configuration
+│
+├── .env                                    # Environment variables (ALREADY EXISTS)
+├── .gitignore                              # Git ignore file (ALREADY EXISTS)
+├── requirements.txt                        # Python dependencies (ALREADY EXISTS)
+├── README.md                               # Project README
+└── run.py                                  # NEW: Application entry point
+
+```
+
+---
+
+## Step-by-Step File Creation for Sprint 2
+
+### Step 1: Create All Required Directories
+
+```bash
+# Navigate to your project root
+cd C:\Users\Ishani Mody\worldcup-smuggling-intelligence
+
+# Create all new directories
+mkdir src\models
+mkdir src\scrapers
+mkdir src\routes
+mkdir src\utils
+mkdir scripts
+mkdir tests
+mkdir docs
+mkdir logs
+mkdir config
+mkdir migrations
+
+# Create .gitkeep files to preserve empty directories in git
+type nul > data\raw\.gitkeep
+type nul > data\processed\.gitkeep
+type nul > logs\.gitkeep
+```
+
+### Step 2: Create __init__.py Files
+
+```bash
+# Create empty __init__.py files to make directories Python packages
+type nul > src\__init__.py
+type nul > src\models\__init__.py
+type nul > src\scrapers\__init__.py
+type nul > src\routes\__init__.py
+type nul > src\utils\__init__.py
+type nul > config\__init__.py
+type nul > tests\__init__.py
+```
+
+---
+
+## File-by-File Placement Guide
+
+### 1. Database Models
+**File:** `src/models/models.py`
+**Content:** The SQLAlchemy models artifact I created
+**Purpose:** Define database schema
+
+```bash
+# Create the file
+notepad src\models\models.py
+# Then paste the database schema code
+```
+
+### 2. IOM Scraper
+**File:** `src/scrapers/iom_scraper.py`
+**Content:** The IOM scraper artifact I created
+**Purpose:** Download and process IOM data
+
+```bash
+notepad src\scrapers\iom_scraper.py
+# Paste the IOM scraper code
+```
+
+### 3. Updated app.py
+**File:** `src/app.py` (REPLACE existing)
+**Content:** Updated Flask app with database integration
+
+### 4. Database Setup Script
+**File:** `scripts/setup_database.py`
+**Purpose:** Initialize database tables
+
+### 5. Configuration File
+**File:** `config/config.py`
+**Purpose:** Centralize configuration
+
+---
+
+## Quick Setup Commands
+
+Run these in order:
+
+```bash
+# 1. Navigate to project
+cd C:\Users\Ishani Mody\worldcup-smuggling-intelligence
+
+# 2. Activate virtual environment
+venv\Scripts\activate
+
+# 3. Create directory structure
+mkdir src\models src\scrapers src\routes src\utils scripts tests logs config
+
+# 4. Create __init__.py files
+type nul > src\__init__.py
+type nul > src\models\__init__.py
+type nul > src\scrapers\__init__.py
+type nul > src\routes\__init__.py
+type nul > src\utils\__init__.py
+type nul > config\__init__.py
+type nul > tests\__init__.py
+
+# 5. Create .gitkeep files
+type nul > data\raw\.gitkeep
+type nul > data\processed\.gitkeep
+type nul > logs\.gitkeep
+
+# 6. Verify structure
+tree /F
+```
+
+---
+
+## Files to Create Next (I'll provide the code)
+
+1. ✅ `src/models/models.py` - Database models (READY)
+2. ✅ `src/scrapers/iom_scraper.py` - IOM scraper (READY)
+3. ⏳ `src/scrapers/cbp_scraper.py` - CBP scraper (NEXT)
+4. ⏳ `scripts/setup_database.py` - Database initialization
+5. ⏳ `scripts/run_scraper.py` - Manual scraper runner
+6. ⏳ `config/config.py` - Configuration
+7. ⏳ `src/app.py` - Updated Flask app
+
+---
+
+## What to Do Right Now
+
+**Option A: Manual Creation**
+1. Create the directories using the commands above
+2. I'll provide each file's code one by one
+3. You copy/paste into the correct location
+
+**Option B: I'll Create Complete Files**
+1. Tell me when directories are created
+2. I'll give you complete, ready-to-use files
+3. You save them in the correct locations
+
+**Which approach do you prefer?**
+
+After you create the directory structure, let me know and I'll provide:
+- Updated `src/app.py` with database integration
+- `scripts/setup_database.py` to initialize your database
+- `scripts/run_scraper.py` to test the IOM scraper
+- `config/config.py` for configuration management
+
+---
+
+## Verification Checklist
+
+After creating files, verify with:
+
+```bash
+# Check directory structure
+tree /F src
+
+# Check if Python can import
+python -c "from src.models import models; print('Models imported!')"
+python -c "from src.scrapers import iom_scraper; print('Scraper imported!')"
+
+# Verify all __init__.py files exist
+dir /s /b *__init__.py
+```
+
+---
+
+**Ready to proceed? Let me know when you've created the directories!** 🚀
