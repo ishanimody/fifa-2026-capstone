@@ -476,553 +476,631 @@
             </div>
         </div>
     </div>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+<script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/15.7.0/nouislider.min.js"></script>
 
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
-    <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/15.7.0/nouislider.min.js"></script>
-    <script>
-        // Initialize map
-        const map = L.map('map').setView([37.0902, -95.7129], 4);
+<script>
+/* -------------------------------
+   MAP INITIALIZATION
+--------------------------------*/
+const map = L.map('map').setView([37.0902, -95.7129], 4);
 
-        // Add base tile layer
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '© OpenStreetMap contributors',
-            maxZoom: 18
-        }).addTo(map);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap contributors',
+    maxZoom: 18
+}).addTo(map);
 
-        // Color coding by country
-        const countryColors = {
-            'USA': '#4CAF50',
-            'Canada': '#2196F3',
-            'Mexico': '#FF5722'
-        };
-        
-        // Drug type colors for legend and markers
-        const drugColors = {
-            'COCAINE': '#FF6B6B',
-            'MARIJUANA': '#51CF66',
-            'METHAMPHETAMINE': '#339AF0',
-            'HEROIN': '#9775FA',
-            'FENTANYL': '#FF8787',
-            'ECSTASY': '#FFB84D',
-            'KETAMINE': '#20C997',
-            'KHAT': '#94D82D',
-            'LSD': '#F06595',
-            'OTHER DRUGS': '#868E96'
-        };
-        
-        function getDrugColor(drugType) {
-            const normalized = (drugType || 'OTHER DRUGS').toUpperCase().trim();
-            return drugColors[normalized] || drugColors['OTHER DRUGS'];
+/* -------------------------------
+   COLORS
+--------------------------------*/
+const countryColors = {
+    'USA': '#4CAF50',
+    'Canada': '#2196F3',
+    'Mexico': '#FF5722'
+};
+
+const drugColors = {
+    'COCAINE': '#FF6B6B',
+    'MARIJUANA': '#51CF66',
+    'METHAMPHETAMINE': '#339AF0',
+    'HEROIN': '#9775FA',
+    'FENTANYL': '#FF8787',
+    'ECSTASY': '#FFB84D',
+    'KETAMINE': '#20C997',
+    'KHAT': '#94D82D',
+    'LSD': '#F06595',
+    'OTHER DRUGS': '#868E96'
+};
+
+function getDrugColor(drugType) {
+    const normalized = (drugType || 'OTHER DRUGS')
+        .toUpperCase()
+        .trim();
+    return drugColors[normalized] || drugColors['OTHER DRUGS'];
+}
+
+/* -------------------------------
+   LAYERS
+--------------------------------*/
+let venueLayer = L.layerGroup().addTo(map);
+let incidentLayer = L.markerClusterGroup();
+let heatLayer = null;
+
+let drugSeizureLayer = L.markerClusterGroup({
+    iconCreateFunction: function(cluster) {
+        return L.divIcon({
+            html: `
+                <div style="
+                    background: #F44336;
+                    color: white;
+                    border-radius: 50%;
+                    width: 40px;
+                    height: 40px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-weight: bold;
+                    border: 2px solid white;
+                ">
+                    ${cluster.getChildCount()}
+                </div>`,
+            className: 'drug-cluster',
+            iconSize: [40, 40]
+        });
+    }
+});
+
+/* -------------------------------
+   FILTER STATE
+--------------------------------*/
+let allVenues = [];
+let allIncidents = [];
+let allDrugSeizures = [];
+
+let currentFilters = {
+    startYear: 2014,
+    endYear: 2024,
+    country: '',
+    drugType: '',
+    limit: 1000
+};
+
+/* -------------------------------
+   DATE SLIDER
+--------------------------------*/
+const dateSlider = document.getElementById('date-range-slider');
+
+noUiSlider.create(dateSlider, {
+    start: [2014, 2024],
+    connect: true,
+    range: { min: 2014, max: 2024 },
+    step: 1,
+    tooltips: false,
+    format: {
+        to: v => Math.round(v),
+        from: v => Number(v)
+    }
+});
+
+dateSlider.noUiSlider.on('update', values => {
+    const start = Math.round(values[0]);
+    const end = Math.round(values[1]);
+
+    document.getElementById('date-range-display').textContent = `${start} - ${end}`;
+
+    currentFilters.startYear = start;
+    currentFilters.endYear = end;
+});
+
+dateSlider.noUiSlider.on('change', () => {
+    applyFiltersAuto();
+});
+
+/* -------------------------------
+   FILTER EVENT LISTENERS
+--------------------------------*/
+document.getElementById('toggle-venues')
+    .addEventListener('change', e => {
+        if (e.target.checked) map.addLayer(venueLayer);
+        else map.removeLayer(venueLayer);
+    });
+
+document.getElementById('toggle-incidents')
+    .addEventListener('change', e => {
+        if (e.target.checked) map.addLayer(incidentLayer);
+        else map.removeLayer(incidentLayer);
+    });
+
+document.getElementById('toggle-heatmap')
+    .addEventListener('change', e => {
+        if (e.target.checked && heatLayer) map.addLayer(heatLayer);
+        else if (heatLayer) map.removeLayer(heatLayer);
+    });
+
+document.getElementById('toggle-drug-seizures')
+    .addEventListener('change', e => {
+        const legend = document.getElementById('drug-types-legend');
+
+        if (e.target.checked) {
+            legend.style.display = 'block';
+            loadDrugSeizures();
+        } else {
+            legend.style.display = 'none';
+            map.removeLayer(drugSeizureLayer);
+            drugSeizureLayer.clearLayers();
+        }
+    });
+
+document.getElementById('country-filter')
+    .addEventListener('change', e => {
+        currentFilters.country = e.target.value;
+        applyFiltersAuto();
+    });
+
+document.getElementById('drug-type-filter')
+    .addEventListener('change', e => {
+        currentFilters.drugType = e.target.value;
+        if (document.getElementById('toggle-drug-seizures').checked) {
+            loadDrugSeizures();
+        }
+    });
+
+document.getElementById('limit-filter')
+    .addEventListener('change', e => {
+        currentFilters.limit = parseInt(e.target.value);
+        applyFiltersAuto();
+    });
+
+/* -------------------------------
+   SEARCH BAR
+--------------------------------*/
+document.getElementById('search-input').addEventListener('keypress', async e => {
+    if (e.key !== 'Enter') return;
+
+    const query = e.target.value.trim();
+    if (!query) return;
+
+    await searchLocation(query);
+});
+
+async function searchLocation(query) {
+    try {
+        const response = await fetch(
+            `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}`
+        );
+
+        const results = await response.json();
+        if (results.length === 0) return alert('Location not found');
+
+        const loc = results[0];
+        map.setView([loc.lat, loc.lon], 10);
+    } catch (err) {
+        console.error('Search error:', err);
+    }
+}
+
+/* -------------------------------
+   LOAD STATISTICS
+--------------------------------*/
+async function loadStatistics() {
+    try {
+        const response = await fetch('/api/statistics');
+        const data = await response.json();
+
+        if (data.success) {
+            document.getElementById('venue-count').textContent = data.statistics.total_venues;
+            document.getElementById('incident-count').textContent = data.statistics.total_incidents.toLocaleString();
+            document.getElementById('casualty-count').textContent = data.statistics.total_casualties.toLocaleString();
         }
 
-        let venueLayer = L.layerGroup().addTo(map);
-        let incidentLayer = L.markerClusterGroup();
-        let heatLayer = null;
-        let drugSeizureLayer = L.markerClusterGroup({
-            iconCreateFunction: function(cluster) {
-                return L.divIcon({ 
-                    html: '<div style="background: #F44336; color: white; border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; font-weight: bold; border: 2px solid white;">' + cluster.getChildCount() + '</div>',
-                    className: 'drug-cluster',
-                    iconSize: [40, 40]
-                });
-            }
-        });
-        
-        let allVenues = [];
-        let allIncidents = [];
-        let allDrugSeizures = [];
-        let currentFilters = {
-            startYear: 2014,
-            endYear: 2024,
-            country: '',
-            drugType: '',
-            limit: 1000
-        };
+        // Load CBP statistics
+        try {
+            const cbpResponse = await fetch('/api/cbp-statistics');
+            const cbpData = await cbpResponse.json();
 
-        // Initialize date range slider
-        const dateSlider = document.getElementById('date-range-slider');
-        noUiSlider.create(dateSlider, {
-            start: [2014, 2024],
-            connect: true,
-            range: {
-                'min': 2014,
-                'max': 2024
-            },
-            step: 1,
-            tooltips: false,
-            format: {
-                to: function(value) {
-                    return Math.round(value);
-                },
-                from: function(value) {
-                    return Number(value);
+            const totalEvents = cbpData?.statistics?.total_events || 0;
+            document.getElementById('seizure-count').textContent =
+                totalEvents.toLocaleString();
+        } catch (cbpError) {
+            console.error('Error loading CBP statistics:', cbpError);
+            document.getElementById('seizure-count').textContent = '0';
+        }
+    } catch (error) {
+        console.error('Error loading statistics:', error);
+    }
+}
+/* -------------------------------
+   LOAD VENUES
+--------------------------------*/
+async function loadVenues() {
+    try {
+        const response = await fetch('/api/venues');
+        const data = await response.json();
+
+        if (!data.success) return;
+
+        allVenues = data.venues;
+        venueLayer.clearLayers();
+
+        data.venues.forEach(venue => {
+            const marker = L.circleMarker([venue.latitude, venue.longitude], {
+                radius: 10,
+                fillColor: '#4CAF50',
+                color: '#fff',
+                weight: 2,
+                opacity: 1,
+                fillOpacity: 0.8
+            });
+
+            marker.bindPopup(`
+                <div style="color: #1e293b; min-width: 200px;">
+                    <h4 style="color: #667eea; margin-bottom: 8px;">${venue.name}</h4>
+                    <div><strong>City:</strong> ${venue.city}</div>
+                    <div><strong>Country:</strong> ${venue.country}</div>
+                    <div><strong>Capacity:</strong> ${venue.capacity.toLocaleString()}</div>
+                    <div><strong>Matches:</strong> ${venue.host_matches}</div>
+                    <div style="margin-top: 5px;">
+                        <strong>Risk:</strong>
+                        <span style="
+                            background: ${
+                                venue.security_risk_level === 'High'
+                                    ? '#f8d7da'
+                                    : venue.security_risk_level === 'Medium'
+                                    ? '#fff3cd'
+                                    : '#d4edda'
+                            };
+                            padding: 2px 8px;
+                            border-radius: 4px;
+                            color: #000;
+                        ">
+                            ${venue.security_risk_level}
+                        </span>
+                    </div>
+                </div>
+            `);
+
+            venueLayer.addLayer(marker);
+        });
+    } catch (error) {
+        console.error('Error loading venues:', error);
+    }
+}
+/* -------------------------------
+   LOAD INCIDENTS
+--------------------------------*/
+async function loadIncidents(filters = {}) {
+    document.getElementById('loading').style.display = 'block';
+
+    try {
+        map.removeLayer(incidentLayer);
+        incidentLayer = L.markerClusterGroup();
+
+        const params = new URLSearchParams(filters);
+        const response = await fetch(`/api/incidents?${params}`);
+        const data = await response.json();
+
+        if (!data.success) return;
+
+        allIncidents = data.incidents;
+        document.getElementById('filtered-count').textContent =
+            data.incidents.length.toLocaleString();
+
+        const heatData = [];
+
+        data.incidents.forEach(incident => {
+            const marker = L.circleMarker([incident.latitude, incident.longitude], {
+                radius: 6,
+                fillColor: '#9C27B0',
+                color: '#fff',
+                weight: 1,
+                opacity: 1,
+                fillOpacity: 0.6
+            });
+
+            marker.bindPopup(`
+                <div style="color: #1e293b; min-width: 200px;">
+                    <h4 style="color: #9C27B0; margin-bottom: 8px;">Incident</h4>
+                    <div><strong>Date:</strong> ${incident.date || 'Unknown'}</div>
+                    <div><strong>Location:</strong> ${incident.location || 'Unknown'}</div>
+                    <div><strong>Country:</strong> ${incident.country || 'Unknown'}</div>
+                    <div style="
+                        margin-top: 8px;
+                        padding-top: 8px;
+                        border-top: 1px solid #e2e8f0;
+                    ">
+                        <strong>Dead:</strong> ${incident.dead || 0}<br>
+                        <strong>Missing:</strong> ${incident.missing || 0}<br>
+                        <strong>Survivors:</strong> ${incident.survivors || 0}
+                    </div>
+                    ${
+                        incident.cause_of_death
+                            ? `<div style="margin-top: 5px;">
+                                <strong>Cause:</strong> ${incident.cause_of_death}
+                               </div>`
+                            : ''
+                    }
+                </div>
+            `);
+
+            incidentLayer.addLayer(marker);
+
+            heatData.push([
+                incident.latitude,
+                incident.longitude,
+                (incident.dead || 0) + (incident.missing || 0)
+            ]);
+        });
+
+        map.addLayer(incidentLayer);
+
+        /* Heatmap */
+        if (heatLayer) map.removeLayer(heatLayer);
+
+        if (heatData.length > 0) {
+            heatLayer = L.heatLayer(heatData, {
+                radius: 25,
+                blur: 35,
+                maxZoom: 10,
+                max: 1.0,
+                gradient: {
+                    0.0: 'blue',
+                    0.5: 'yellow',
+                    0.7: 'orange',
+                    1.0: 'red'
                 }
-            }
-        });
+            });
 
-        // Update on slider change
-        dateSlider.noUiSlider.on('update', function(values) {
-            const start = Math.round(values[0]);
-            const end = Math.round(values[1]);
-            document.getElementById('date-range-display').textContent = start + ' - ' + end;
-            currentFilters.startYear = start;
-            currentFilters.endYear = end;
-        });
-
-        // Apply filters on slider release (not on every move)
-        dateSlider.noUiSlider.on('change', function() {
-            applyFiltersAuto();
-        });
-
-        // Layer toggles
-        document.getElementById('toggle-venues').addEventListener('change', (e) => {
-            if (e.target.checked) {
-                map.addLayer(venueLayer);
-            } else {
-                map.removeLayer(venueLayer);
-            }
-        });
-
-        document.getElementById('toggle-incidents').addEventListener('change', (e) => {
-            if (e.target.checked) {
-                map.addLayer(incidentLayer);
-            } else {
-                map.removeLayer(incidentLayer);
-            }
-        });
-
-        document.getElementById('toggle-heatmap').addEventListener('change', (e) => {
-            if (e.target.checked && heatLayer) {
+            if (document.getElementById('toggle-heatmap').checked) {
                 map.addLayer(heatLayer);
-            } else if (heatLayer) {
-                map.removeLayer(heatLayer);
-            }
-        });
-        
-        document.getElementById('toggle-drug-seizures').addEventListener('change', (e) => {
-            const drugTypesLegend = document.getElementById('drug-types-legend');
-            
-            if (e.target.checked) {
-                // Show drug types legend
-                drugTypesLegend.style.display = 'block';
-                // Load drug seizures data
-                loadDrugSeizures();
-            } else {
-                // Hide drug types legend
-                drugTypesLegend.style.display = 'none';
-                // Remove drug seizures from map
-                map.removeLayer(drugSeizureLayer);
-                drugSeizureLayer.clearLayers();
-            }
-        });
-
-        // Auto-apply filters on change
-        document.getElementById('country-filter').addEventListener('change', (e) => {
-            currentFilters.country = e.target.value;
-            applyFiltersAuto();
-        });
-
-        document.getElementById('drug-type-filter').addEventListener('change', (e) => {
-            currentFilters.drugType = e.target.value;
-            if (document.getElementById('toggle-drug-seizures').checked) {
-                loadDrugSeizures();
-            }
-        });
-
-        document.getElementById('limit-filter').addEventListener('change', (e) => {
-            currentFilters.limit = parseInt(e.target.value);
-            applyFiltersAuto();
-        });
-
-        // Search functionality
-        document.getElementById('search-input').addEventListener('keypress', async (e) => {
-            if (e.key === 'Enter') {
-                const query = e.target.value;
-                if (query) {
-                    await searchLocation(query);
-                }
-            }
-        });
-
-        async function searchLocation(query) {
-            try {
-                const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}`);
-                const results = await response.json();
-                
-                if (results && results.length > 0) {
-                    const result = results[0];
-                    map.setView([result.lat, result.lon], 10);
-                } else {
-                    alert('Location not found');
-                }
-            } catch (error) {
-                console.error('Search error:', error);
             }
         }
+    } catch (error) {
+        console.error('Error loading incidents:', error);
+    } finally {
+        document.getElementById('loading').style.display = 'none';
+    }
+}
 
-        async function loadStatistics() {
-            try {
-                const response = await fetch('/api/statistics');
-                const data = await response.json();
-                
-                if (data.success) {
-                    document.getElementById('venue-count').textContent = data.statistics.total_venues;
-                    document.getElementById('incident-count').textContent = data.statistics.total_incidents.toLocaleString();
-                    document.getElementById('casualty-count').textContent = data.statistics.total_casualties.toLocaleString();
-                }
-                
-                // Load CBP statistics
-                try {
-                    const cbpResponse = await fetch('/api/cbp-statistics');
-                    const cbpData = await cbpResponse.json();
-                    
-                    if (cbpData.success && cbpData.statistics) {
-                        const totalEvents = cbpData.statistics.total_events || 0;
-                        document.getElementById('seizure-count').textContent = totalEvents.toLocaleString();
-                    } else {
-                        document.getElementById('seizure-count').textContent = '0';
-                    }
-                } catch (cbpError) {
-                    console.error('Error loading CBP statistics:', cbpError);
-                    document.getElementById('seizure-count').textContent = '0';
-                }
-            } catch (error) {
-                console.error('Error loading statistics:', error);
-            }
-        }
+/* -------------------------------
+   LOAD DRUG SEIZURES (FIXED)
+--------------------------------*/
+async function loadDrugSeizures() {
+    try {
+        map.removeLayer(drugSeizureLayer);
 
-        async function loadVenues() {
-            try {
-                const response = await fetch('/api/venues');
-                const data = await response.json();
-                
-                if (data.success) {
-                    allVenues = data.venues;
-                    venueLayer.clearLayers();
-                    
-                    data.venues.forEach(venue => {
-                        const marker = L.circleMarker([venue.latitude, venue.longitude], {
-                            radius: 10,
-                            fillColor: '#4CAF50', // Single green color for all venues
-                            color: '#fff',
-                            weight: 2,
-                            opacity: 1,
-                            fillOpacity: 0.8
-                        });
+        drugSeizureLayer = L.markerClusterGroup({
+            maxClusterRadius: 80,
+            spiderfyOnMaxZoom: false,
+            showCoverageOnHover: true,
+            zoomToBoundsOnClick: true,
+            disableClusteringAtZoom: 18,
+            chunkedLoading: true,
+            removeOutsideVisibleBounds: true,
 
-                        marker.bindPopup(`
-                            <div style="color: #1e293b; min-width: 200px;">
-                                <h4 style="color: #667eea; margin-bottom: 8px;">${venue.name}</h4>
-                                <div><strong>City:</strong> ${venue.city}</div>
-                                <div><strong>Country:</strong> ${venue.country}</div>
-                                <div><strong>Capacity:</strong> ${venue.capacity.toLocaleString()}</div>
-                                <div><strong>Matches:</strong> ${venue.host_matches}</div>
-                                <div style="margin-top: 5px;"><strong>Risk:</strong> <span style="background: ${venue.security_risk_level === 'High' ? '#f8d7da' : venue.security_risk_level === 'Medium' ? '#fff3cd' : '#d4edda'}; padding: 2px 8px; border-radius: 4px; color: #000;">${venue.security_risk_level}</span></div>
-                            </div>
-                        `);
+            iconCreateFunction: function(cluster) {
+                const markers = cluster.getAllChildMarkers();
+                const childCount = markers.length;
 
-                        venueLayer.addLayer(marker);
-                    });
-                }
-            } catch (error) {
-                console.error('Error loading venues:', error);
-            }
-        }
-
-        async function loadIncidents(filters = {}) {
-            document.getElementById('loading').style.display = 'block';
-            
-            try {
-                map.removeLayer(incidentLayer);
-                incidentLayer = L.markerClusterGroup();
-                
-                const params = new URLSearchParams(filters);
-                const response = await fetch(`/api/incidents?${params}`);
-                const data = await response.json();
-                
-                if (data.success) {
-                    allIncidents = data.incidents;
-                    
-                    // Update filtered count
-                    document.getElementById('filtered-count').textContent = data.incidents.length.toLocaleString();
-                    
-                    const heatData = [];
-                    
-                    data.incidents.forEach(incident => {
-                        const marker = L.circleMarker([incident.latitude, incident.longitude], {
-                            radius: 6,
-                            fillColor: '#9C27B0',
-                            color: '#fff',
-                            weight: 1,
-                            opacity: 1,
-                            fillOpacity: 0.6
-                        });
-
-                        marker.bindPopup(`
-                            <div style="color: #1e293b; min-width: 200px;">
-                                <h4 style="color: #9C27B0; margin-bottom: 8px;">Incident</h4>
-                                <div><strong>Date:</strong> ${incident.date || 'Unknown'}</div>
-                                <div><strong>Location:</strong> ${incident.location || 'Unknown'}</div>
-                                <div><strong>Country:</strong> ${incident.country || 'Unknown'}</div>
-                                <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #e2e8f0;">
-                                    <strong>Dead:</strong> ${incident.dead || 0}<br>
-                                    <strong>Missing:</strong> ${incident.missing || 0}<br>
-                                    <strong>Survivors:</strong> ${incident.survivors || 0}
-                                </div>
-                                ${incident.cause_of_death ? `<div style="margin-top: 5px;"><strong>Cause:</strong> ${incident.cause_of_death}</div>` : ''}
-                            </div>
-                        `);
-
-                        incidentLayer.addLayer(marker);
-                        heatData.push([incident.latitude, incident.longitude, (incident.dead || 0) + (incident.missing || 0)]);
-                    });
-                    
-                    map.addLayer(incidentLayer);
-                    
-                    // Update heat map
-                    if (heatLayer) {
-                        map.removeLayer(heatLayer);
-                    }
-                    if (heatData.length > 0) {
-                        heatLayer = L.heatLayer(heatData, {
-                            radius: 25,
-                            blur: 35,
-                            maxZoom: 10,
-                            max: 1.0,
-                            gradient: {
-                                0.0: 'blue',
-                                0.5: 'yellow',
-                                0.7: 'orange',
-                                1.0: 'red'
-                            }
-                        });
-                        
-                        if (document.getElementById('toggle-heatmap').checked) {
-                            map.addLayer(heatLayer);
-                        }
-                    }
-                }
-            } catch (error) {
-                console.error('Error loading incidents:', error);
-            } finally {
-                document.getElementById('loading').style.display = 'none';
-            }
-        }
-
-        async function loadDrugSeizures() {
-            try {
-                map.removeLayer(drugSeizureLayer);
-                drugSeizureLayer = L.markerClusterGroup({
-                    iconCreateFunction: function(cluster) {
-                        const markers = cluster.getAllChildMarkers();
-                        const childCount = markers.length;
-                        
-                        // Count drug types in this cluster
-                        const drugTypeCounts = {};
-                        markers.forEach(marker => {
-                            const drugType = marker.options.drugType || 'OTHER DRUGS';
-                            drugTypeCounts[drugType] = (drugTypeCounts[drugType] || 0) + 1;
-                        });
-                        
-                        // Sort by count to get dominant types
-                        const sortedDrugs = Object.entries(drugTypeCounts)
-                            .sort((a, b) => b[1] - a[1]);
-                        
-                        // Create pie chart visualization
-                        let pieHTML = '';
-                        if (sortedDrugs.length === 1) {
-                            // Single drug type - solid color circle
-                            const color = getDrugColor(sortedDrugs[0][0]);
-                            pieHTML = `
-                                <div style="
-                                    background: ${color};
-                                    color: white;
-                                    border-radius: 50%;
-                                    width: 40px;
-                                    height: 40px;
-                                    display: flex;
-                                    align-items: center;
-                                    justify-content: center;
-                                    font-weight: bold;
-                                    border: 2px solid white;
-                                    box-shadow: 0 2px 5px rgba(0,0,0,0.3);
-                                ">
-                                    ${childCount}
-                                </div>
-                            `;
-                        } else {
-                            // Multiple drug types - create pie chart
-                            let gradientStops = [];
-                            let currentPercent = 0;
-                            
-                            sortedDrugs.forEach(([drug, count]) => {
-                                const percent = (count / childCount) * 100;
-                                const color = getDrugColor(drug);
-                                gradientStops.push(`${color} ${currentPercent}% ${currentPercent + percent}%`);
-                                currentPercent += percent;
-                            });
-                            
-                            const gradient = `conic-gradient(${gradientStops.join(', ')})`;
-                            
-                            pieHTML = `
-                                <div style="
-                                    background: ${gradient};
-                                    border-radius: 50%;
-                                    width: 40px;
-                                    height: 40px;
-                                    display: flex;
-                                    align-items: center;
-                                    justify-content: center;
-                                    border: 2px solid white;
-                                    box-shadow: 0 2px 5px rgba(0,0,0,0.3);
-                                ">
-                                    <div style="
-                                        background: rgba(0,0,0,0.6);
-                                        color: white;
-                                        border-radius: 50%;
-                                        width: 30px;
-                                        height: 30px;
-                                        display: flex;
-                                        align-items: center;
-                                        justify-content: center;
-                                        font-weight: bold;
-                                        font-size: 11px;
-                                    ">
-                                        ${childCount}
-                                    </div>
-                                </div>
-                            `;
-                        }
-                        
-                        return L.divIcon({ 
-                            html: pieHTML,
-                            className: 'drug-cluster',
-                            iconSize: [40, 40]
-                        });
-                    },
-                    maxClusterRadius: 50
+                // Count total events inside cluster
+                let totalEvents = 0;
+                markers.forEach(marker => {
+                    totalEvents += marker.options.eventCount || 1;
                 });
-                
-                const filters = {
-                    limit: 50000 // Load all available drug seizure data
-                };
-                
-                if (currentFilters.drugType) {
-                    filters.drug_type = currentFilters.drugType;
-                }
-                
-                const params = new URLSearchParams(filters);
-                const response = await fetch(`/api/cbp-seizures?${params}`);
-                const data = await response.json();
-                
-                if (data.success) {
-                    allDrugSeizures = data.seizures;
-                    console.log(`Loading ${data.seizures.length} individual drug seizure points...`);
-                    
-                    // Create individual markers for each seizure
-                    data.seizures.forEach(seizure => {
-                        // Get color based on drug type
-                        const drugColor = getDrugColor(seizure.drug_type);
-                        
-                        // Calculate marker size based on event count
-                        const markerSize = Math.min(10, Math.max(4, Math.log(seizure.event_count + 1) * 2));
-                        
-                        const marker = L.circleMarker([seizure.latitude, seizure.longitude], {
-                            radius: markerSize,
-                            fillColor: drugColor,
-                            color: '#fff',
-                            weight: 1,
-                            opacity: 1,
-                            fillOpacity: 0.7,
-                            drugType: seizure.drug_type  // Store for cluster coloring
-                        });
 
-                        // Create popup with seizure details
-                        marker.bindPopup(`
-                            <div style="color: #1e293b; min-width: 250px;">
-                                <h4 style="color: ${drugColor}; margin-bottom: 8px; border-bottom: 2px solid ${drugColor}; padding-bottom: 4px;">
-                                    Drug Seizure
-                                </h4>
-                                <div style="margin-bottom: 8px;">
-                                    <strong>Drug Type:</strong> <span style="color: ${drugColor}; font-weight: bold;">${seizure.drug_type}</span><br>
-                                    <strong>Location:</strong> ${seizure.office || 'Unknown'}<br>
-                                    <strong>City:</strong> ${seizure.city}, ${seizure.state}<br>
-                                    <strong>Year:</strong> ${seizure.year}<br>
-                                    <strong>Month:</strong> ${seizure.month}
-                                </div>
-                                <div style="background: #f8f9fa; padding: 8px; border-radius: 4px; margin: 8px 0;">
-                                    <strong>Events:</strong> ${seizure.event_count.toLocaleString()}<br>
-                                    <strong>Quantity:</strong> ${seizure.quantity_lbs.toFixed(2)} lbs
-                                </div>
-                            </div>
-                        `);
+                // Count drug types inside cluster
+                const drugCount = {};
+                markers.forEach(marker => {
+                    const drug = marker.options.drugType || 'OTHER DRUGS';
+                    drugCount[drug] = (drugCount[drug] || 0) + 1;
+                });
 
-                        drugSeizureLayer.addLayer(marker);
+                const sorted = Object.entries(drugCount)
+                    .sort((a, b) => b[1] - a[1]);
+
+                /* Determine size */
+                let size = 40;
+                if (childCount > 100) size = 60;
+                else if (childCount > 50) size = 50;
+                else if (childCount > 10) size = 45;
+
+                let html = "";
+
+                /* Single drug type cluster */
+                if (sorted.length === 1) {
+                    const color = getDrugColor(sorted[0][0]);
+                    html = `
+                        <div style="
+                            background: ${color};
+                            border-radius: 50%;
+                            width: ${size}px;
+                            height: ${size}px;
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            border: 3px solid white;
+                            color: white;
+                            font-weight: bold;
+                        ">
+                            ${childCount}
+                        </div>`;
+                } else {
+                    /* Multi-drug cluster pie chart */
+                    let stops = [];
+                    let pct = 0;
+
+                    sorted.forEach(([drug, count]) => {
+                        const percent = (count / childCount) * 100;
+                        stops.push(
+                            `${getDrugColor(drug)} ${pct}% ${pct + percent}%`
+                        );
+                        pct += percent;
                     });
-                    
-                    map.addLayer(drugSeizureLayer);
-                    
-                    console.log(`✓ Loaded ${data.seizures.length} drug seizure points on map`);
+
+                    const gradient = `conic-gradient(${stops.join(', ')})`;
+
+                    html = `
+                        <div style="
+                            background: ${gradient};
+                            border-radius: 50%;
+                            width: ${size}px;
+                            height: ${size}px;
+                            border: 3px solid white;
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                        ">
+                            <div style="
+                                background: rgba(0,0,0,0.7);
+                                color: white;
+                                border-radius: 50%;
+                                width: ${size - 10}px;
+                                height: ${size - 10}px;
+                                display: flex;
+                                align-items: center;
+                                justify-content: center;
+                                font-weight: bold;
+                            ">
+                                ${childCount}
+                            </div>
+                        </div>`;
                 }
-            } catch (error) {
-                console.error('Error loading drug seizures:', error);
-            }
-        }
 
-        function applyFiltersAuto() {
-            const filters = {
-                limit: currentFilters.limit
-            };
-            
-            if (currentFilters.country) {
-                filters.country = currentFilters.country;
+                return L.divIcon({
+                    html,
+                    className: "drug-cluster",
+                    iconSize: [size, size]
+                });
             }
-            
-            // Add date filtering - need to convert years to dates
-            if (currentFilters.startYear) {
-                filters.start_date = `${currentFilters.startYear}-01-01`;
-            }
-            if (currentFilters.endYear) {
-                filters.end_date = `${currentFilters.endYear}-12-31`;
-            }
-            
-            console.log('Applying filters:', filters);
-            loadIncidents(filters);
-        }
+        });
 
-        function resetFilters() {
-            currentFilters = {
-                startYear: 2014,
-                endYear: 2024,
-                country: '',
-                drugType: '',
-                limit: 1000
-            };
-            
-            document.getElementById('country-filter').value = '';
-            document.getElementById('drug-type-filter').value = '';
-            document.getElementById('limit-filter').value = '1000';
-            dateSlider.noUiSlider.set([2014, 2024]);
-            
-            loadIncidents({ limit: 1000 });
-            
-            if (document.getElementById('toggle-drug-seizures').checked) {
-                loadDrugSeizures();
-            }
-        }
+        /* Build query */
+        const filters = { limit: 50000 };
+        if (currentFilters.drugType) filters.drug_type = currentFilters.drugType;
 
-        // Initialize
-        async function init() {
-            await loadStatistics();
-            await loadVenues();
-            await loadIncidents({ limit: 1000 });
-            
-            console.log('Map initialized successfully');
-        }
+        const params = new URLSearchParams(filters);
+        const response = await fetch(`/api/cbp-seizures?${params}`);
+        const data = await response.json();
 
-        init();
-    </script>
+        if (!data.success) return;
+
+        allDrugSeizures = data.seizures;
+
+        // Add markers
+        data.seizures.forEach(seizure => {
+            const drugColor = getDrugColor(seizure.drug_type);
+
+            const size = Math.min(
+                10,
+                Math.max(4, Math.log(seizure.event_count + 1) * 2)
+            );
+
+            const marker = L.circleMarker([seizure.latitude, seizure.longitude], {
+                radius: size,
+                fillColor: drugColor,
+                color: '#fff',
+                weight: 1,
+                opacity: 1,
+                fillOpacity: 0.7,
+                drugType: seizure.drug_type,
+                eventCount: seizure.event_count
+            });
+
+            marker.bindPopup(`
+                <div style="color:#1e293b; min-width: 250px;">
+                    <h4 style="
+                        color: ${drugColor};
+                        margin-bottom: 8px;
+                        border-bottom: 2px solid ${drugColor};
+                        padding-bottom: 4px;
+                    ">
+                        Drug Seizure
+                    </h4>
+                    <div style="margin-bottom: 8px;">
+                        <strong>Drug:</strong>
+                        <span style="color:${drugColor}; font-weight:bold;">
+                            ${seizure.drug_type}
+                        </span><br>
+                        <strong>Location:</strong> ${seizure.office || 'Unknown'}<br>
+                        <strong>City:</strong> ${seizure.city}, ${seizure.state}<br>
+                        <strong>Year:</strong> ${seizure.year}<br>
+                        <strong>Month:</strong> ${seizure.month}
+                    </div>
+                    <div style="
+                        background:#f8f9fa;
+                        padding:8px;
+                        border-radius:4px;
+                        margin-top:8px;
+                    ">
+                        <strong>Events:</strong> ${seizure.event_count.toLocaleString()}<br>
+                        <strong>Quantity:</strong> ${seizure.quantity_lbs.toFixed(2)} lbs
+                    </div>
+                </div>
+            `);
+
+            drugSeizureLayer.addLayer(marker);
+        });
+
+        map.addLayer(drugSeizureLayer);
+    } catch (err) {
+        console.error('Error loading drug seizures:', err);
+    }
+}
+
+/* -------------------------------
+   APPLY FILTERS
+--------------------------------*/
+function applyFiltersAuto() {
+    const filters = { limit: currentFilters.limit };
+
+    if (currentFilters.country) filters.country = currentFilters.country;
+    if (currentFilters.startYear)
+        filters.start_date = `${currentFilters.startYear}-01-01`;
+    if (currentFilters.endYear)
+        filters.end_date = `${currentFilters.endYear}-12-31`;
+
+    loadIncidents(filters);
+}
+
+/* -------------------------------
+   RESET FILTERS
+--------------------------------*/
+function resetFilters() {
+    currentFilters = {
+        startYear: 2014,
+        endYear: 2024,
+        country: '',
+        drugType: '',
+        limit: 1000
+    };
+
+    document.getElementById('country-filter').value = '';
+    document.getElementById('drug-type-filter').value = '';
+    document.getElementById('limit-filter').value = '1000';
+
+    dateSlider.noUiSlider.set([2014, 2024]);
+
+    loadIncidents({ limit: 1000 });
+
+    if (document.getElementById('toggle-drug-seizures').checked) {
+        loadDrugSeizures();
+    }
+}
+
+/* -------------------------------
+   INIT
+--------------------------------*/
+async function init() {
+    await loadStatistics();
+    await loadVenues();
+    await loadIncidents({ limit: 1000 });
+
+    console.log('Map initialized successfully');
+}
+
+init();
+</script>
+
 </body>
 </html>
