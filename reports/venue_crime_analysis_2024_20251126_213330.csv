@@ -1,0 +1,17 @@
+venue_name,city,country,risk_category,agencies_nearby,total_offenses,violent_crimes,homicides,drug_crimes,human_trafficking,avg_risk_score
+BMO Field,Toronto,Canada,LOW-MEDIUM,0,0,0,0,0,0,0.0
+BC Place,Vancouver,Canada,LOW-MEDIUM,0,0,0,0,0,0,0.0
+Estadio Akron,Guadalajara,Mexico,LOW-MEDIUM,0,0,0,0,0,0,0.0
+Estadio Azteca,Mexico City,Mexico,LOW-MEDIUM,0,0,0,0,0,0,0.0
+Estadio BBVA,Monterrey,Mexico,LOW-MEDIUM,0,0,0,0,0,0,0.0
+AT&T Stadium,Arlington,USA,LOW-MEDIUM,0,0,0,0,0,0,0.0
+Mercedes-Benz Stadium,Atlanta,USA,LOW-MEDIUM,0,0,0,0,0,0,0.0
+MetLife Stadium,East Rutherford,USA,LOW-MEDIUM,0,0,0,0,0,0,0.0
+Gillette Stadium,Foxborough,USA,LOW-MEDIUM,0,0,0,0,0,0,0.0
+NRG Stadium,Houston,USA,LOW-MEDIUM,0,0,0,0,0,0,0.0
+SoFi Stadium,Inglewood,USA,LOW-MEDIUM,0,0,0,0,0,0,0.0
+Arrowhead Stadium,Kansas City,USA,LOW-MEDIUM,0,0,0,0,0,0,0.0
+Hard Rock Stadium,Miami Gardens,USA,LOW-MEDIUM,0,0,0,0,0,0,0.0
+Lincoln Financial Field,Philadelphia,USA,LOW-MEDIUM,0,0,0,0,0,0,0.0
+Levi's Stadium,Santa Clara,USA,LOW-MEDIUM,0,0,0,0,0,0,0.0
+Lumen Field,Seattle,USA,LOW-MEDIUM,0,0,0,0,0,0,0.0

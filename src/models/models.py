@@ -1,13 +1,18 @@
-
 from datetime import datetime
 from sqlalchemy import Column, Integer, String, Text, Boolean, Date, DateTime, Float, JSON, ForeignKey, Index
 from sqlalchemy.orm import relationship
 from sqlalchemy.ext.declarative import declarative_base
 
-# For now, we'll use a simple declarative base
-# This will be connected to the db object in app.py
+# Import db from extensions for Flask-SQLAlchemy integration
+from extensions import db
+
+# For models, we'll use declarative base
+# This will be connected to the db object through metadata
 Base = declarative_base()
 
+# Export db so other modules can import from models.models
+__all__ = ['db', 'Base', 'DataSource', 'WorldCupVenue', 'SmugglingIncident', 
+           'SmugglingRoute', 'BorderCrossing', 'DataQualityLog', 'CBPDrugSeizure']
 
 class DataSource(Base):
     """Track data sources and their update schedules"""
@@ -210,11 +215,6 @@ class DataQualityLog(Base):
     
     def __repr__(self):
         return f'<QualityLog {self.processing_date}>'
-    
-    """
-CBP Drug Seizures Database Model
-Add to: src/models/models.py (at the end, before helper functions)
-"""
 
 class CBPDrugSeizure(Base):
     """CBP Drug Seizures Data"""
@@ -288,6 +288,251 @@ CBP_FIELD_OFFICE_LOCATIONS = {
     'WASHINGTON FIELD OFFICE': {'city': 'Washington', 'state': 'DC', 'lat': 38.9072, 'lon': -77.0369},
 }
 
+"""
+NIBRS Crime Data Model - Add to models.py
+
+This model stores FBI National Incident-Based Reporting System (NIBRS) data
+for crime analysis around World Cup 2026 venues.
+
+ADD THIS CLASS TO: src/models/models.py (at the end, before helper functions)
+"""
+
+from sqlalchemy import Column, Integer, String, Float, DateTime, Index
+from datetime import datetime
+
+class NIBRSCrimeData(Base):
+    """FBI NIBRS Crime Statistics by Agency and Year"""
+    __tablename__ = 'nibrs_crime_data'
+    
+    id = Column(Integer, primary_key=True)
+    
+    # Location and Agency Information
+    year = Column(Integer, nullable=False, index=True)
+    state = Column(String(50), nullable=False, index=True)
+    agency_type = Column(String(100))
+    agency_name = Column(String(200), nullable=False, index=True)
+    
+    # Geocoding (we'll add this based on city/state)
+    city = Column(String(100), index=True)
+    latitude = Column(Float)
+    longitude = Column(Float)
+    
+    # Total Offenses
+    total_offenses = Column(Integer, default=0)
+    
+    # High-Level Categories
+    crimes_against_persons = Column(Integer, default=0)
+    crimes_against_property = Column(Integer, default=0)
+    crimes_against_society = Column(Integer, default=0)
+    
+    # Violent Crimes (Critical for World Cup Security)
+    assault_offenses = Column(Integer, default=0)
+    aggravated_assault = Column(Integer, default=0)
+    simple_assault = Column(Integer, default=0)
+    intimidation = Column(Integer, default=0)
+    
+    # Homicide
+    homicide_offenses = Column(Integer, default=0)
+    murder_nonnegligent_manslaughter = Column(Integer, default=0)
+    negligent_manslaughter = Column(Integer, default=0)
+    justifiable_homicide = Column(Integer, default=0)
+    
+    # Human Trafficking (Relevant to smuggling analysis)
+    human_trafficking_offenses = Column(Integer, default=0)
+    commercial_sex_acts = Column(Integer, default=0)
+    involuntary_servitude = Column(Integer, default=0)
+    
+    # Kidnapping
+    kidnapping_abduction = Column(Integer, default=0)
+    
+    # Sex Offenses
+    sex_offenses = Column(Integer, default=0)
+    rape = Column(Integer, default=0)
+    sodomy = Column(Integer, default=0)
+    sexual_assault_with_object = Column(Integer, default=0)
+    
+    # Property Crimes
+    arson = Column(Integer, default=0)
+    burglary = Column(Integer, default=0)
+    larceny_theft = Column(Integer, default=0)
+    motor_vehicle_theft = Column(Integer, default=0)
+    robbery = Column(Integer, default=0)
+    vandalism = Column(Integer, default=0)
+    
+    # Drug Crimes (Critical for venue security)
+    drug_narcotic_offenses = Column(Integer, default=0)
+    drug_violations = Column(Integer, default=0)
+    drug_equipment_violations = Column(Integer, default=0)
+    
+    # Organized Crime Indicators
+    gambling_offenses = Column(Integer, default=0)
+    prostitution_offenses = Column(Integer, default=0)
+    
+    # Other Crimes
+    weapons_violations = Column(Integer, default=0)
+    fraud_offenses = Column(Integer, default=0)
+    identity_theft = Column(Integer, default=0)
+    
+    # Risk Scoring (calculated fields)
+    violent_crime_rate = Column(Float)  # Per 100k if we have population data
+    property_crime_rate = Column(Float)
+    overall_risk_score = Column(Float)  # Composite score for venue proximity
+    
+    # Metadata
+    data_source = Column(String(200), default='FBI NIBRS')
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Indexes for performance
+    __table_args__ = (
+        Index('idx_nibrs_year_state', 'year', 'state'),
+        Index('idx_nibrs_location', 'latitude', 'longitude'),
+        Index('idx_nibrs_agency', 'agency_name', 'year'),
+        Index('idx_nibrs_city', 'city', 'state'),
+    )
+    
+    def __repr__(self):
+        return f'<NIBRSCrime {self.year} {self.state} {self.agency_name}>'
+    
+    def calculate_risk_score(self):
+        """
+        Calculate overall risk score based on violent crimes
+        Higher weight on violent crimes, human trafficking, and drug offenses
+        """
+        if not self.total_offenses or self.total_offenses == 0:
+            self.overall_risk_score = 0.0
+            return 0.0
+        
+        # Weighted scoring
+        violent_score = (
+            (self.murder_nonnegligent_manslaughter or 0) * 10.0 +
+            (self.aggravated_assault or 0) * 5.0 +
+            (self.rape or 0) * 5.0 +
+            (self.robbery or 0) * 3.0 +
+            (self.kidnapping_abduction or 0) * 8.0 +
+            (self.human_trafficking_offenses or 0) * 10.0
+        )
+        
+        drug_score = (self.drug_narcotic_offenses or 0) * 2.0
+        property_score = (self.burglary or 0) * 0.5
+        
+        total_score = violent_score + drug_score + property_score
+        
+        # Normalize to 0-100 scale
+        max_possible = self.total_offenses * 10  # Theoretical max if all were murders
+        self.overall_risk_score = min((total_score / max_possible) * 100, 100) if max_possible > 0 else 0
+        
+        return self.overall_risk_score
+
+
+# Helper function to geocode agency by extracting city from agency name
+def extract_city_from_agency_name(agency_name, state):
+    """
+    Extract city name from agency name
+    E.g., "Apache Junction" from "Apache Junction Police Department"
+    """
+    if not agency_name:
+        return None
+    
+    # Common patterns
+    agency_name = agency_name.strip()
+    
+    # Remove common suffixes
+    suffixes = [
+        ' Police Department', ' PD', ' Sheriff\'s Office', ' Sheriff Office',
+        ' Sheriff', ' Police', ' Dept', ' Department', ' City', ' Town',
+        ' Village', ' Borough', ' Township', ' County'
+    ]
+    
+    city = agency_name
+    for suffix in suffixes:
+        if city.endswith(suffix):
+            city = city[:-len(suffix)].strip()
+    
+    return city if city else None
+
+
+# State-level coordinates (for agencies without city-level geocoding)
+STATE_COORDINATES = {
+    'ALABAMA': {'lat': 32.806671, 'lon': -86.791130},
+    'ALASKA': {'lat': 61.370716, 'lon': -152.404419},
+    'ARIZONA': {'lat': 33.729759, 'lon': -111.431221},
+    'ARKANSAS': {'lat': 34.969704, 'lon': -92.373123},
+    'CALIFORNIA': {'lat': 36.116203, 'lon': -119.681564},
+    'COLORADO': {'lat': 39.059811, 'lon': -105.311104},
+    'CONNECTICUT': {'lat': 41.597782, 'lon': -72.755371},
+    'DELAWARE': {'lat': 39.318523, 'lon': -75.507141},
+    'FLORIDA': {'lat': 27.766279, 'lon': -81.686783},
+    'GEORGIA': {'lat': 33.040619, 'lon': -83.643074},
+    'HAWAII': {'lat': 21.094318, 'lon': -157.498337},
+    'IDAHO': {'lat': 44.240459, 'lon': -114.478828},
+    'ILLINOIS': {'lat': 40.349457, 'lon': -88.986137},
+    'INDIANA': {'lat': 39.849426, 'lon': -86.258278},
+    'IOWA': {'lat': 42.011539, 'lon': -93.210526},
+    'KANSAS': {'lat': 38.526600, 'lon': -96.726486},
+    'KENTUCKY': {'lat': 37.668140, 'lon': -84.670067},
+    'LOUISIANA': {'lat': 31.169546, 'lon': -91.867805},
+    'MAINE': {'lat': 44.693947, 'lon': -69.381927},
+    'MARYLAND': {'lat': 39.063946, 'lon': -76.802101},
+    'MASSACHUSETTS': {'lat': 42.230171, 'lon': -71.530106},
+    'MICHIGAN': {'lat': 43.326618, 'lon': -84.536095},
+    'MINNESOTA': {'lat': 45.694454, 'lon': -93.900192},
+    'MISSISSIPPI': {'lat': 32.741646, 'lon': -89.678696},
+    'MISSOURI': {'lat': 38.456085, 'lon': -92.288368},
+    'MONTANA': {'lat': 46.921925, 'lon': -110.454353},
+    'NEBRASKA': {'lat': 41.125370, 'lon': -98.268082},
+    'NEVADA': {'lat': 38.313515, 'lon': -117.055374},
+    'NEW HAMPSHIRE': {'lat': 43.452492, 'lon': -71.563896},
+    'NEW JERSEY': {'lat': 40.298904, 'lon': -74.521011},
+    'NEW MEXICO': {'lat': 34.840515, 'lon': -106.248482},
+    'NEW YORK': {'lat': 42.165726, 'lon': -74.948051},
+    'NORTH CAROLINA': {'lat': 35.630066, 'lon': -79.806419},
+    'NORTH DAKOTA': {'lat': 47.528912, 'lon': -99.784012},
+    'OHIO': {'lat': 40.388783, 'lon': -82.764915},
+    'OKLAHOMA': {'lat': 35.565342, 'lon': -96.928917},
+    'OREGON': {'lat': 44.572021, 'lon': -122.070938},
+    'PENNSYLVANIA': {'lat': 40.590752, 'lon': -77.209755},
+    'RHODE ISLAND': {'lat': 41.680893, 'lon': -71.511780},
+    'SOUTH CAROLINA': {'lat': 33.856892, 'lon': -80.945007},
+    'SOUTH DAKOTA': {'lat': 44.299782, 'lon': -99.438828},
+    'TENNESSEE': {'lat': 35.747845, 'lon': -86.692345},
+    'TEXAS': {'lat': 31.054487, 'lon': -97.563461},
+    'UTAH': {'lat': 40.150032, 'lon': -111.862434},
+    'VERMONT': {'lat': 44.045876, 'lon': -72.710686},
+    'VIRGINIA': {'lat': 37.769337, 'lon': -78.169968},
+    'WASHINGTON': {'lat': 47.400902, 'lon': -121.490494},
+    'WEST VIRGINIA': {'lat': 38.491226, 'lon': -80.954453},
+    'WISCONSIN': {'lat': 44.268543, 'lon': -89.616508},
+    'WYOMING': {'lat': 42.755966, 'lon': -107.302490},
+    'DISTRICT OF COLUMBIA': {'lat': 38.907192, 'lon': -77.036871},
+}
+
+
+# Helper function to geocode agency by extracting city from agency name
+def extract_city_from_agency_name(agency_name, state):
+    """
+    Extract city name from agency name
+    E.g., "Apache Junction" from "Apache Junction Police Department"
+    """
+    if not agency_name:
+        return None
+    
+    # Common patterns
+    agency_name = agency_name.strip()
+    
+    # Remove common suffixes
+    suffixes = [
+        ' Police Department', ' PD', ' Sheriff\'s Office', ' Sheriff Office',
+        ' Sheriff', ' Police', ' Dept', ' Department', ' City', ' Town',
+        ' Village', ' Borough', ' Township', ' County'
+    ]
+    
+    city = agency_name
+    for suffix in suffixes:
+        if city.endswith(suffix):
+            city = city[:-len(suffix)].strip()
+    
+    return city if city else None
 
 # Helper function to calculate distance between two points
 def calculate_distance(lat1, lon1, lat2, lon2):

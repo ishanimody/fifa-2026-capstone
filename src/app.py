@@ -1,11 +1,5 @@
-"""
-Flask Application - Updated with API and Database Integration
-
-Place in: src/app.py (REPLACE existing)
-"""
 
 from flask import Flask, render_template, jsonify
-from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
 import os
 from dotenv import load_dotenv
@@ -21,20 +15,23 @@ app = Flask(__name__,
 # Configuration
 app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv(
     'DATABASE_URL', 
-    'sqlite:///worldcup_intelligence.db'
+    'postgresql://wcuser:password@localhost:5432/worldcup_intelligence'
 )
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'dev-secret-key-for-sprint-4')
 
-# Initialize extensions
-db = SQLAlchemy()
+# Import and initialize extensions
+from extensions import db
 db.init_app(app)
 CORS(app)  # Enable CORS for API access
 
-# Create application context
+# Create application context and tables
 with app.app_context():
     # Import models (after db is initialized)
     from models import models
+    
+    # Create tables if they don't exist
+    db.create_all()
 
 # Import and register API blueprint
 from routes.api_routes import api_bp
@@ -87,6 +84,8 @@ if __name__ == '__main__':
     print("  - http://127.0.0.1:5000/api/incidents")
     print("  - http://127.0.0.1:5000/api/statistics")
     print("  - http://127.0.0.1:5000/api/heatmap")
+    print("  - http://127.0.0.1:5000/api/cbp-statistics")
+    print("  - http://127.0.0.1:5000/api/nibrs/statistics")
     print("\nPress CTRL+C to stop the server")
     print("=" * 60 + "\n")
     
