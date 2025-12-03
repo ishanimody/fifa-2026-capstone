@@ -22,10 +22,7 @@
 │       └── geo_analysis.py                 # Geospatial analysis tools
 │
 ├── 📁 templates/                           # HTML templates (Jinja2)
-│   ├── index.html                          # Landing page
-│   ├── map.html                            # Interactive map page ⭐ MAIN MAP
-│   └── dashboard.html                      # Statistics dashboard (optional)
-│
+│   │   ├── map.html                            # Interactive map page ⭐ │
 ├── 📁 static/                              # Static assets
 │   ├── 📁 css/
 │   │   └── style.css                       # Custom styles (optional)

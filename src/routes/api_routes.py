@@ -179,51 +179,50 @@ def get_statistics():
 def get_cbp_seizures():
     """Get CBP drug seizure data with optional filters"""
     try:
-        # Get query parameters
+        # Query parameters
         drug_type = request.args.get('drug_type')
-        year = request.args.get('year', type=int)
+        year = request.args.get('year', type=int)   # UI uses "year", DB uses fiscal_year
         state = request.args.get('state')
         limit = request.args.get('limit', default=10000, type=int)
-        
-        # Build query
-        query = db.session.query(CBPDrugSeizure)
-        
-        # Apply filters
+
+        # Base query – only rows with coordinates
+        query = db.session.query(CBPDrugSeizure).filter(
+            CBPDrugSeizure.latitude.isnot(None),
+            CBPDrugSeizure.longitude.isnot(None)
+        )
+
+        # Filters
         if drug_type:
             query = query.filter(CBPDrugSeizure.drug_type == drug_type)
-        
+
         if year:
-            query = query.filter(CBPDrugSeizure.year == year)
-        
+            # map "year" param → fiscal_year column
+            query = query.filter(CBPDrugSeizure.fiscal_year == year)
+
         if state:
             query = query.filter(CBPDrugSeizure.state == state.upper())
-        
-        # Order by event count (most significant seizures first)
-        query = query.order_by(desc(CBPDrugSeizure.event_count))
-        
-        # Apply limit
-        query = query.limit(limit)
-        
-        # Execute query
+
+        # Order and limit
+        query = query.order_by(desc(CBPDrugSeizure.event_count)).limit(limit)
+
         seizures = query.all()
-        
-        # Format results
+
         seizures_data = []
-        for seizure in seizures:
+        for s in seizures:
             seizures_data.append({
-                'id': seizure.id,
-                'year': seizure.year,
-                'month': seizure.month,
-                'drug_type': seizure.drug_type,
-                'office': seizure.office,
-                'city': seizure.city,
-                'state': seizure.state,
-                'latitude': float(seizure.latitude) if seizure.latitude else None,
-                'longitude': float(seizure.longitude) if seizure.longitude else None,
-                'event_count': seizure.event_count,
-                'quantity_lbs': float(seizure.quantity_lbs) if seizure.quantity_lbs else 0
+                'id': s.id,
+                'year': s.fiscal_year,                     # ✅ correct field
+                'month': s.month,
+                'drug_type': s.drug_type,
+                'office': s.area_of_responsibility,        # ✅ correct field
+                'city': s.city,
+                'state': s.state,
+                'latitude': float(s.latitude) if s.latitude is not None else None,
+                'longitude': float(s.longitude) if s.longitude is not None else None,
+                'event_count': s.event_count or 0,
+                'quantity_lbs': float(s.quantity_lbs or 0),
             })
-        
+
         return jsonify({
             'success': True,
             'seizures': seizures_data,
@@ -232,59 +231,14 @@ def get_cbp_seizures():
                 'drug_type': drug_type,
                 'year': year,
                 'state': state,
-                'limit': limit
-            }
+                'limit': limit,
+            },
         })
-        
+
     except Exception as e:
         return jsonify({
             'success': False,
-            'error': str(e)
-        }), 500
-
-
-@api_bp.route('/cbp-statistics', methods=['GET'])
-def get_cbp_statistics():
-    """Get CBP drug seizure statistics"""
-    try:
-        # Total events
-        total_events = db.session.query(
-            func.sum(CBPDrugSeizure.event_count)
-        ).scalar() or 0
-        
-        # Total quantity
-        total_quantity = db.session.query(
-            func.sum(CBPDrugSeizure.quantity_lbs)
-        ).scalar() or 0
-        
-        # By drug type
-        by_drug = db.session.query(
-            CBPDrugSeizure.drug_type,
-            func.sum(CBPDrugSeizure.event_count).label('events'),
-            func.sum(CBPDrugSeizure.quantity_lbs).label('quantity')
-        ).group_by(CBPDrugSeizure.drug_type).all()
-        
-        drug_stats = []
-        for drug, events, quantity in by_drug:
-            drug_stats.append({
-                'drug_type': drug,
-                'total_events': int(events or 0),
-                'total_quantity_lbs': float(quantity or 0)
-            })
-        
-        return jsonify({
-            'success': True,
-            'statistics': {
-                'total_events': int(total_events),
-                'total_quantity_lbs': float(total_quantity),
-                'by_drug_type': drug_stats
-            }
-        })
-        
-    except Exception as e:
-        return jsonify({
-            'success': False,
-            'error': str(e)
+            'error': str(e),
         }), 500
 
 

@@ -15,7 +15,7 @@ app = Flask(__name__,
 # Configuration
 app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv(
     'DATABASE_URL', 
-    'postgresql://wcuser:password@localhost:5432/worldcup_intelligence'
+    'postgresql://postgres:Q2%40impact@localhost:5432/worldcup_intelligence'
 )
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'dev-secret-key-for-sprint-4')
@@ -28,10 +28,10 @@ CORS(app)  # Enable CORS for API access
 # Create application context and tables
 with app.app_context():
     # Import models (after db is initialized)
-    from models import models
+    from models.models import*
     
     # Create tables if they don't exist
-    db.create_all()
+    #db.create_all()
 
 # Import and register API blueprint
 from routes.api_routes import api_bp

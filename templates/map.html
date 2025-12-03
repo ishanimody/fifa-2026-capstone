@@ -298,7 +298,6 @@
     <div class="header">
         <h1>🌍 World Cup 2026 - Intelligence Platform</h1>
         <div class="header-nav">
-            <a href="/">Home</a>
             <a href="/map">Map</a>
         </div>
     </div>
@@ -333,6 +332,12 @@
             </div>
             
             <div class="stat-card">
+                <h3>Crime Records</h3>
+                <div class="value" id="nibrs-count">-</div>
+                <div class="subtext">NIBRS Data (FBI)</div>
+            </div>
+            
+            <div class="stat-card">
                 <h3>Filtered Results</h3>
                 <div class="value" id="filtered-count">-</div>
                 <div class="subtext">Current View</div>
@@ -357,6 +362,10 @@
                         <input type="checkbox" id="toggle-drug-seizures">
                         <label for="toggle-drug-seizures">Drug Seizures (CBP)</label>
                     </div>
+                    <div class="toggle-item">
+                        <input type="checkbox" id="toggle-nibrs" checked>
+                        <label for="toggle-nibrs">Crime Data (NIBRS)</label>
+                    </div>
                 </div>
                 
                 <h3 style="margin-top: 15px;">Legend</h3>
@@ -367,6 +376,33 @@
                 <div class="legend-item">
                     <div class="legend-color" style="background: #9C27B0; opacity: 0.6;"></div>
                     <span>Incidents</span>
+                </div>
+                
+                <!-- NIBRS Crime Risk Levels -->
+                <div id="nibrs-legend" style="display: block;">
+                    <div style="margin-top: 12px; padding-top: 10px; border-top: 1px solid #475569;">
+                        <strong style="font-size: 11px; color: #94a3b8;">CRIME RISK (NIBRS):</strong>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #dc2626;"></div>
+                        <span>High Risk (>80)</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #f59e0b;"></div>
+                        <span>Medium-High (60-80)</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #fbbf24;"></div>
+                        <span>Medium (40-60)</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #84cc16;"></div>
+                        <span>Low-Medium (20-40)</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #22c55e;"></div>
+                        <span>Low (<20)</span>
+                    </div>
                 </div>
                 
                 <!-- Drug Seizure Types - Hidden by default, shown when Drug Seizures layer is checked -->
@@ -455,6 +491,17 @@
                         <option value="vehicle">Vehicle Accident</option>
                         <option value="violence">Violence</option>
                         <option value="unknown">Unknown</option>
+                    </select>
+                </div>
+                
+                <div class="filter-group">
+                    <label>Crime Type (NIBRS Data)</label>
+                    <select id="crime-type-filter">
+                        <option value="all">All Crimes</option>
+                        <option value="violent">Violent Crimes</option>
+                        <option value="property">Property Crimes</option>
+                        <option value="drug">Drug Offenses</option>
+                        <option value="human_trafficking">Human Trafficking</option>
                     </select>
                 </div>
                 
@@ -552,6 +599,39 @@ let drugSeizureLayer = L.markerClusterGroup({
     }
 });
 
+/* NIBRS Crime Data Layer */
+let nibrsLayer = L.markerClusterGroup({
+    maxClusterRadius: 60,
+    iconCreateFunction: function(cluster) {
+        const childCount = cluster.getChildCount();
+        let size = 40;
+        if (childCount > 100) size = 55;
+        else if (childCount > 50) size = 50;
+        else if (childCount > 10) size = 45;
+
+        return L.divIcon({
+            html: `
+                <div style="
+                    background: linear-gradient(135deg, #dc2626 0%, #f59e0b 100%);
+                    color: white;
+                    border-radius: 50%;
+                    width: ${size}px;
+                    height: ${size}px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-weight: bold;
+                    border: 3px solid white;
+                    box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+                ">
+                    ${childCount}
+                </div>`,
+            className: 'nibrs-cluster',
+            iconSize: [size, size]
+        });
+    }
+});
+
 /* -------------------------------
    FILTER STATE
 --------------------------------*/
@@ -564,6 +644,7 @@ let currentFilters = {
     endYear: 2024,
     country: '',
     drugType: '',
+    crimeType: 'all',
     limit: 1000
 };
 
@@ -592,10 +673,21 @@ dateSlider.noUiSlider.on('update', values => {
 
     currentFilters.startYear = start;
     currentFilters.endYear = end;
+    
+    // Update NIBRS count in real-time while dragging
+    if (document.getElementById('toggle-nibrs').checked) {
+        updateNIBRSCount();  // ← NEW: Updates count while dragging
+    }
 });
 
 dateSlider.noUiSlider.on('change', () => {
-    applyFiltersAuto();
+    // Reload full data when slider is released
+    if (document.getElementById('toggle-incidents').checked) {
+        applyFiltersAuto();
+    }
+    if (document.getElementById('toggle-nibrs').checked) {
+        loadNIBRSData();  // ← Full reload when released
+    }
 });
 
 /* -------------------------------
@@ -633,6 +725,22 @@ document.getElementById('toggle-drug-seizures')
         }
     });
 
+document.getElementById('toggle-nibrs')
+    .addEventListener('change', e => {
+        const legend = document.getElementById('nibrs-legend');
+
+        if (e.target.checked) {
+            legend.style.display = 'block';
+            map.addLayer(nibrsLayer);
+            if (nibrsLayer.getLayers().length === 0) {
+                loadNIBRSData();
+            }
+        } else {
+            legend.style.display = 'none';
+            map.removeLayer(nibrsLayer);
+        }
+    });
+
 document.getElementById('country-filter')
     .addEventListener('change', e => {
         currentFilters.country = e.target.value;
@@ -647,10 +755,22 @@ document.getElementById('drug-type-filter')
         }
     });
 
+document.getElementById('crime-type-filter')
+    .addEventListener('change', e => {
+        currentFilters.crimeType = e.target.value;
+        if (document.getElementById('toggle-nibrs').checked) {
+            loadNIBRSData();
+        }
+    });
+
 document.getElementById('limit-filter')
     .addEventListener('change', e => {
         currentFilters.limit = parseInt(e.target.value);
         applyFiltersAuto();
+        // Also reload NIBRS if visible
+        if (document.getElementById('toggle-nibrs').checked) {
+            loadNIBRSData();
+        }
     });
 
 /* -------------------------------
@@ -706,6 +826,22 @@ async function loadStatistics() {
         } catch (cbpError) {
             console.error('Error loading CBP statistics:', cbpError);
             document.getElementById('seizure-count').textContent = '0';
+        }
+
+        // Load NIBRS statistics
+        try {
+            const nibrsResponse = await fetch('/api/nibrs/statistics');
+            const nibrsData = await nibrsResponse.json();
+
+            if (nibrsData.success) {
+                const totalRecords = nibrsData.statistics.total_records || 0;
+                document.getElementById('nibrs-count').textContent = nibrsData.statistics.total_records.toLocaleString();
+            } else {
+                document.getElementById('nibrs-count').textContent = '0';
+            }
+        } catch (nibrsError) {
+            console.error('Error loading NIBRS statistics:', nibrsError);
+            document.getElementById('nibrs-count').textContent = '0';
         }
     } catch (error) {
         console.error('Error loading statistics:', error);
@@ -868,7 +1004,9 @@ async function loadIncidents(filters = {}) {
 --------------------------------*/
 async function loadDrugSeizures() {
     try {
+        if (map.hasLayer(drugSeizureLayer)) {
         map.removeLayer(drugSeizureLayer);
+        }
 
         drugSeizureLayer = L.markerClusterGroup({
             maxClusterRadius: 80,
@@ -986,14 +1124,18 @@ async function loadDrugSeizures() {
         if (!data.success) return;
 
         allDrugSeizures = data.seizures;
-
+        
         // Add markers
         data.seizures.forEach(seizure => {
-            const drugColor = getDrugColor(seizure.drug_type);
+            // Skip if no coordinates
+            if (seizure.latitude == null || seizure.longitude == null) return;
+
+            const eventCount = seizure.event_count || 0;
+            const drugColor = getDrugColor(seizure.drug_type) || "#999999";
 
             const size = Math.min(
                 10,
-                Math.max(4, Math.log(seizure.event_count + 1) * 2)
+                Math.max(4, Math.log(eventCount + 1) * 2)
             );
 
             const marker = L.circleMarker([seizure.latitude, seizure.longitude], {
@@ -1004,7 +1146,7 @@ async function loadDrugSeizures() {
                 opacity: 1,
                 fillOpacity: 0.7,
                 drugType: seizure.drug_type,
-                eventCount: seizure.event_count
+                eventCount: eventCount      
             });
 
             marker.bindPopup(`
@@ -1060,7 +1202,9 @@ function applyFiltersAuto() {
     if (currentFilters.endYear)
         filters.end_date = `${currentFilters.endYear}-12-31`;
 
+    if (document.getElementById('toggle-incidents').checked) {
     loadIncidents(filters);
+}
 }
 
 /* -------------------------------
@@ -1072,11 +1216,13 @@ function resetFilters() {
         endYear: 2024,
         country: '',
         drugType: '',
+        crimeType: 'all',
         limit: 1000
     };
 
     document.getElementById('country-filter').value = '';
     document.getElementById('drug-type-filter').value = '';
+    document.getElementById('crime-type-filter').value = 'all';
     document.getElementById('limit-filter').value = '1000';
 
     dateSlider.noUiSlider.set([2014, 2024]);
@@ -1086,8 +1232,180 @@ function resetFilters() {
     if (document.getElementById('toggle-drug-seizures').checked) {
         loadDrugSeizures();
     }
+
+    if (document.getElementById('toggle-nibrs').checked) {
+        loadNIBRSData();
+    }
 }
 
+/* -------------------------------
+   LOAD NIBRS CRIME DATA
+--------------------------------*/
+function getRiskColor(riskScore) {
+    if (riskScore >= 80) return '#dc2626';  // Red - High risk
+    if (riskScore >= 60) return '#f59e0b';  // Orange - Medium-high
+    if (riskScore >= 40) return '#fbbf24';  // Yellow - Medium
+    if (riskScore >= 20) return '#84cc16';  // Light green - Low-medium
+    return '#22c55e';                        // Green - Low risk
+}
+
+async function loadNIBRSData() {
+    try {
+        console.log('Loading NIBRS crime data...');
+        
+        // Build query parameters
+        const params = new URLSearchParams({
+            distance: 100,
+            min_risk: 0,
+            limit: 5000,
+            crime_type: currentFilters.crimeType
+        });
+
+        if (currentFilters.startYear) {
+            params.append('start_year', currentFilters.startYear);
+        }
+        if (currentFilters.endYear) {
+            params.append('end_year', currentFilters.endYear);
+        }
+        
+        // Fetch data from API
+        const response = await fetch(`/api/nibrs/geojson?${params}`);
+        const data = await response.json();
+        
+        if (!data.success) {
+            console.error('Failed to load NIBRS data:', data.error);
+            return;
+        }
+        
+        console.log(`Loaded ${data.features.length} NIBRS crime records (type: ${currentFilters.crimeType})`);
+        
+        // Update statistics
+        document.getElementById('nibrs-count').textContent = data.features.length.toLocaleString();
+        
+        // Clear existing NIBRS layer
+        nibrsLayer.clearLayers();
+        
+        // Add each crime location as a circle marker
+        data.features.forEach(feature => {
+            const props = feature.properties;
+            const coords = feature.geometry.coordinates;
+            
+            // Create circle marker
+            const marker = L.circleMarker([coords[1], coords[0]], {
+                radius: Math.min(8, Math.max(4, props.total_offenses / 200)), // Size by offenses
+                fillColor: getRiskColor(props.risk_score),
+                color: '#fff',
+                weight: 1,
+                opacity: 0.8,
+                fillOpacity: 0.7
+            });
+            
+            // Create popup
+            const popupContent = `
+                <div style="min-width: 260px; color:#1e293b;">
+                    <h4 style="
+                        margin: 0 0 10px 0;
+                        color: ${getRiskColor(props.risk_score)};
+                        font-weight: 600;
+                        border-bottom: 2px solid ${getRiskColor(props.risk_score)};
+                        padding-bottom: 6px;
+                    ">
+                        ${props.agency_name}
+                    </h4>
+                    <div style="font-size: 12px; line-height: 1.5;">
+                        <p style="margin: 5px 0;">
+                            <strong>Location:</strong> ${props.city || 'Unknown'}, ${props.state}
+                        </p>
+                        <p style="margin: 5px 0;">
+                            <strong>Year:</strong> ${props.year}
+                        <p style="margin: 5px 0; color: #0ea5e9;">
+                            <strong>📍 Nearest Venue:</strong> ${props.nearest_venue}
+                        </p>
+                        <p style="margin: 5px 0; color: #0ea5e9;">
+                            <strong>📏 Distance:</strong> ${props.distance_to_venue} miles
+                        </p>
+                        <hr style="margin: 10px 0; border: 0; border-top: 1px solid #e2e8f0;">           
+                        </p>
+                        <hr style="margin: 10px 0; border: 0; border-top: 1px solid #e2e8f0;">
+                        <div style="
+                            background: ${getRiskColor(props.risk_score)}15;
+                            padding: 8px;
+                            border-radius: 4px;
+                            margin-bottom: 8px;
+                        ">
+                            <p style="margin: 5px 0;">
+                                <strong style="color: ${getRiskColor(props.risk_score)};">
+                                    Risk Score: ${props.risk_score.toFixed(1)}
+                                </strong>
+                            </p>
+                        </div>
+                        <p style="margin: 5px 0;">
+                            <strong>Total Offenses:</strong> ${props.total_offenses.toLocaleString()}
+                        </p>
+                        <p style="margin: 5px 0;">
+                            <strong>Violent Crimes:</strong> ${props.violent_crimes.toLocaleString()}
+                        </p>
+                        <p style="margin: 5px 0;">
+                            <strong>Homicides:</strong> ${props.homicides}
+                        </p>
+                        ${props.human_trafficking > 0 ? `
+                        <p style="margin: 5px 0; color: #dc2626; font-weight: bold;">
+                            ⚠️ Human Trafficking: ${props.human_trafficking}
+                        </p>
+                        ` : ''}
+                        ${props.drug_crimes > 0 ? `
+                        <p style="margin: 5px 0;">
+                            <strong>Drug Crimes:</strong> ${props.drug_crimes.toLocaleString()}
+                        </p>
+                        ` : ''}
+                    </div>
+                </div>
+            `;
+            
+            marker.bindPopup(popupContent);
+            nibrsLayer.addLayer(marker);
+        });
+        
+        // Add to map
+        map.addLayer(nibrsLayer);
+        
+        console.log('NIBRS layer loaded successfully');
+        
+    } catch (error) {
+        console.error('Error loading NIBRS data:', error);
+        document.getElementById('nibrs-count').textContent = 'Error';
+    }
+}
+
+// Quick function to update NIBRS count without reloading markers
+async function updateNIBRSCount() {
+    try {
+        const params = new URLSearchParams({
+            distance: 100,
+            min_risk: 0,
+            limit: 1,  // Only need 1 to check if any exist
+            crime_type: currentFilters.crimeType
+        });
+        
+        if (currentFilters.startYear) {
+            params.append('start_year', currentFilters.startYear);
+        }
+        if (currentFilters.endYear) {
+            params.append('end_year', currentFilters.endYear);
+        }
+        
+        const response = await fetch(`/api/nibrs/near-venues?${params}`);
+        const data = await response.json();
+        
+        if (data.success && data.metadata) {
+            // Update just the count, don't reload markers
+            document.getElementById('nibrs-count').textContent = 
+                data.metadata.total_records.toLocaleString();
+        }
+    } catch (error) {
+        console.error('Error updating NIBRS count:', error);
+    }
+}
 /* -------------------------------
    INIT
 --------------------------------*/
@@ -1095,6 +1413,7 @@ async function init() {
     await loadStatistics();
     await loadVenues();
     await loadIncidents({ limit: 1000 });
+    await loadNIBRSData();
 
     console.log('Map initialized successfully');
 }

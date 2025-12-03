@@ -245,9 +245,7 @@ class CBPDrugSeizure(Base):
     state = Column(String(50))
     
     # Metadata
-    data_source = Column(String(200))
     created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     # Unique constraint to prevent duplicates
     __table_args__ = (
