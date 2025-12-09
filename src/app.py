@@ -24,31 +24,16 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'dev-secret-key-for-sprint-4')
 
 # Import and initialize extensions
-from extensions import db
 db.init_app(app)
 CORS(app)  # Enable CORS for API access
 
-# Create application context and tables
-with app.app_context():
-    # Import models (after db is initialized)
-    from models.models import*
-    
-    # Create tables if they don't exist
-    #db.create_all()
-
-# Import and register API blueprint
-from routes.api_routes import api_bp
+# register API blueprint
 app.register_blueprint(api_bp)
 
 @app.route("/")
 def home():
     return render_template("map.html") 
 
-# Main routes
-@app.route('/')
-def index():
-    """Main landing page"""
-    return render_template('index.html')
 
 @app.route('/map')
 def map_view():
