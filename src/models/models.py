@@ -4,7 +4,7 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.ext.declarative import declarative_base
 
 # Import db from extensions for Flask-SQLAlchemy integration
-from extensions import db
+from src.extensions import db
 
 # For models, we'll use declarative base
 # This will be connected to the db object through metadata

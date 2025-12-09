@@ -4,7 +4,8 @@ from flask_cors import CORS
 import os
 from dotenv import load_dotenv
 from src.extensions import db
-
+from src.models.models import *
+from src.routes.api_routes import api_bp
 
 # Load environment variables
 load_dotenv()
@@ -38,6 +39,10 @@ with app.app_context():
 # Import and register API blueprint
 from routes.api_routes import api_bp
 app.register_blueprint(api_bp)
+
+@app.route("/")
+def home():
+    return render_template("map.html") 
 
 # Main routes
 @app.route('/')
