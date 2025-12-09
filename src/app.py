@@ -3,6 +3,8 @@ from flask import Flask, render_template, jsonify
 from flask_cors import CORS
 import os
 from dotenv import load_dotenv
+from src.extensions import db
+
 
 # Load environment variables
 load_dotenv()
@@ -15,7 +17,7 @@ app = Flask(__name__,
 # Configuration
 app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv(
     'DATABASE_URL', 
-    'postgresql://postgres:Q2%40impact@localhost:5432/worldcup_intelligence'
+    'postgresql://postgres:Glenwood%4027573@db.rzlwlqgtozuscpifzzre.supabase.co:5432/postgres?sslmode=require'
 )
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'dev-secret-key-for-sprint-4')
