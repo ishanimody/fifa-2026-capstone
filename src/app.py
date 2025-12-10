@@ -17,7 +17,7 @@ app = Flask(__name__,
 # Configuration
 app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv(
     'DATABASE_URL', 
-    'postgresql://postgres:Glenwood%4027573@db.rzlwlqgtozuscpifzzre.supabase.co:5432/postgres?sslmode=require'
+    'postgresql://postgres:Glenwood%4027573@db.rzlwlqgtozuscpifzzre.supabase.co:5432/worldcup_intelligence?sslmode=require'
 )
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'dev-secret-key-for-sprint-4')
@@ -28,6 +28,15 @@ CORS(app)  # Enable CORS for API access
 
 # register API blueprint
 app.register_blueprint(api_bp)
+
+@app.route("/test-db")
+def test_db():
+    try:
+        count = db.session.query(WorldCupVenue).count()
+        return f"DB connected, {count} venues found"
+    except Exception as e:
+        return f"DB connection failed: {e}"
+
 
 @app.route("/")
 def home():
