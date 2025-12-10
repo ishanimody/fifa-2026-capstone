@@ -2,7 +2,6 @@
 API Routes for World Cup 2026 Intelligence Platform
 Includes: Venues, Incidents, CBP Drug Seizures, NIBRS Crime Data
 """
-
 from flask import Blueprint, jsonify, request
 from src.extensions import db
 from sqlalchemy import func, desc
@@ -10,7 +9,7 @@ from datetime import datetime
 from math import radians, cos, sin, asin, sqrt
 
 # Import with CORRECT model names from your models.py
-from models.models import WorldCupVenue, SmugglingIncident, CBPDrugSeizure, NIBRSCrimeData
+from src.models.models import WorldCupVenue, SmugglingIncident, CBPDrugSeizure, NIBRSCrimeData
 
 # Create aliases for cleaner code
 Venue = WorldCupVenue
