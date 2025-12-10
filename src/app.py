@@ -58,26 +58,3 @@ def not_found(e):
 def server_error(e):
     return jsonify({'error': 'Internal server error'}), 500
 
-if __name__ == '__main__':
-    print("=" * 60)
-    print("🚀 World Cup 2026 Intelligence Platform")
-    print("Sprint 4 - Interactive Map Development")
-    print("=" * 60)
-    print(f"Database: {app.config['SQLALCHEMY_DATABASE_URI'].split('@')[1] if '@' in app.config['SQLALCHEMY_DATABASE_URI'] else 'SQLite'}")
-    print("Server starting on http://127.0.0.1:5000")
-    print("=" * 60)
-    print("\nAvailable routes:")
-    print("  - http://127.0.0.1:5000/          (Home)")
-    print("  - http://127.0.0.1:5000/map       (Interactive Map)")
-    print("  - http://127.0.0.1:5000/dashboard (Dashboard)")
-    print("\nAPI Endpoints:")
-    print("  - http://127.0.0.1:5000/api/venues")
-    print("  - http://127.0.0.1:5000/api/incidents")
-    print("  - http://127.0.0.1:5000/api/statistics")
-    print("  - http://127.0.0.1:5000/api/heatmap")
-    print("  - http://127.0.0.1:5000/api/cbp-statistics")
-    print("  - http://127.0.0.1:5000/api/nibrs/statistics")
-    print("\nPress CTRL+C to stop the server")
-    print("=" * 60 + "\n")
-    
-    app.run(debug=True, host='127.0.0.1', port=5000)

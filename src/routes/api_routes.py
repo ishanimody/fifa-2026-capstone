@@ -4,7 +4,7 @@ Includes: Venues, Incidents, CBP Drug Seizures, NIBRS Crime Data
 """
 
 from flask import Blueprint, jsonify, request
-from extensions import db
+from src.extensions import db
 from sqlalchemy import func, desc
 from datetime import datetime
 from math import radians, cos, sin, asin, sqrt
