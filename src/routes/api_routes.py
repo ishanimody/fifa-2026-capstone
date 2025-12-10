@@ -241,6 +241,72 @@ def get_cbp_seizures():
             'error': str(e),
         }), 500
 
+# ============================================================================
+# CBP STATISTICS
+# ============================================================================
+
+@api_bp.route('/cbp-statistics', methods=['GET'])
+def get_cbp_statistics():
+    """
+    Return aggregated statistics for CBP drug seizures.
+    
+    Query params:
+        - year (optional): Filter by fiscal year
+        - drug_type (optional): Filter by drug type
+    """
+    try:
+        year = request.args.get('year', type=int)
+        drug_type = request.args.get('drug_type')
+
+        query = db.session.query(CBPDrugSeizure)
+
+        # Apply filters
+        if year:
+            query = query.filter(CBPDrugSeizure.fiscal_year == year)
+        if drug_type:
+            query = query.filter(CBPDrugSeizure.drug_type == drug_type)
+
+        seizures = query.all()
+
+        total_events = sum(s.event_count or 0 for s in seizures)
+        total_quantity = sum(float(s.quantity_lbs or 0) for s in seizures)
+
+        # Breakdown by drug type
+        drug_breakdown = {}
+        for s in seizures:
+            dt = s.drug_type or "UNKNOWN"
+            if dt not in drug_breakdown:
+                drug_breakdown[dt] = {"events": 0, "quantity_lbs": 0.0}
+            drug_breakdown[dt]["events"] += s.event_count or 0
+            drug_breakdown[dt]["quantity_lbs"] += float(s.quantity_lbs or 0)
+
+        # Breakdown by year
+        year_breakdown = {}
+        for s in seizures:
+            y = s.fiscal_year or 0
+            if y not in year_breakdown:
+                year_breakdown[y] = {"events": 0, "quantity_lbs": 0.0}
+            year_breakdown[y]["events"] += s.event_count or 0
+            year_breakdown[y]["quantity_lbs"] += float(s.quantity_lbs or 0)
+
+        return jsonify({
+            "success": True,
+            "filters": {
+                "year": year,
+                "drug_type": drug_type
+            },
+            "statistics": {
+                "total_rows": len(seizures),
+                "total_events": total_events,
+                "total_quantity_lbs": round(total_quantity, 2),
+                "drug_breakdown": drug_breakdown,
+                "year_breakdown": year_breakdown
+            }
+        })
+
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
 
 # ============================================================================
 # NIBRS CRIME DATA
