@@ -7,6 +7,8 @@ from src.extensions import db
 from sqlalchemy import func, desc
 from datetime import datetime
 from math import radians, cos, sin, asin, sqrt
+from src.routes.api_routes import api_bp
+from src.models.models import *
 
 # Import with CORRECT model names from your models.py
 from src.models.models import WorldCupVenue, SmugglingIncident, CBPDrugSeizure, NIBRSCrimeData
